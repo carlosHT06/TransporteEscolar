@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { View, Text, TextInput, Button, StyleSheet, FlatList, Alert } from "react-native"
 
 type User = {
@@ -31,9 +31,18 @@ export default function ParentScreen({ user, manager, onLogout }: ParentScreenPr
   const [origin, setOrigin] = useState("")
   const [hour, setHour] = useState("")
   const [refresh, setRefresh] = useState(false)
+  const [editingTripId, setEditingTripId] = useState<number | null>(null)
 
   const trips: Trip[] = manager.getTripsByParent(user.id)
   const validOrigins = ["CasaA", "CasaB", "CasaC"]
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefresh((prev) => !prev)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [])
 
   const handleRequestTrip = () => {
     const cleanOrigin = origin.trim()
@@ -48,12 +57,34 @@ export default function ParentScreen({ user, manager, onLogout }: ParentScreenPr
       return
     }
 
-    manager.requestTrip(studentName, cleanOrigin, "Colegio", Number(hour), user.id)
+    if (editingTripId) {
+      manager.updateTrip(editingTripId, {
+        studentName,
+        origin: cleanOrigin,
+        hour: Number(hour),
+      })
+
+      setEditingTripId(null)
+    } else {
+      manager.requestTrip(studentName, cleanOrigin, "Colegio", Number(hour), user.id)
+    }
 
     setStudentName("")
     setOrigin("")
     setHour("")
-    setRefresh(!refresh)
+    setRefresh((prev) => !prev)
+  }
+
+  const handleDeleteTrip = (tripId: number) => {
+    manager.deleteTrip(tripId)
+    setRefresh((prev) => !prev)
+  }
+
+  const handleEditTrip = (trip: Trip) => {
+    setStudentName(trip.studentName)
+    setOrigin(trip.origin)
+    setHour(trip.hour.toString())
+    setEditingTripId(trip.id)
   }
 
   return (
@@ -83,7 +114,10 @@ export default function ParentScreen({ user, manager, onLogout }: ParentScreenPr
         onChangeText={setHour}
       />
 
-      <Button title="Solicitar viaje" onPress={handleRequestTrip} />
+      <Button
+        title={editingTripId ? "Guardar cambios" : "Solicitar viaje"}
+        onPress={handleRequestTrip}
+      />
 
       <Text style={styles.section}>Mis viajes</Text>
 
@@ -97,6 +131,11 @@ export default function ParentScreen({ user, manager, onLogout }: ParentScreenPr
             <Text>Origen: {item.origin}</Text>
             <Text>Hora: {item.hour}</Text>
             <Text>Estado: {item.status}</Text>
+
+            <View style={styles.buttonSpace} />
+            <Button title="Editar" onPress={() => handleEditTrip(item)} />
+            <View style={styles.buttonSpace} />
+            <Button title="Eliminar" onPress={() => handleDeleteTrip(item.id)} />
           </View>
         )}
       />
@@ -135,5 +174,8 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     marginBottom: 10,
+  },
+  buttonSpace: {
+    height: 8,
   },
 })

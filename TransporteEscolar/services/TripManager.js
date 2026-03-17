@@ -72,7 +72,7 @@ class TripManager {
 
   getTripsByParent(parentId) {
     const allTrips = this.trips.traverse()
-    return allTrips.filter(trip => trip.parentId === parentId)
+    return allTrips.filter((trip) => trip.parentId === parentId)
   }
 
   getNextPendingTrip() {
@@ -133,6 +133,43 @@ class TripManager {
 
   getRoute(origin, destination) {
     return this.graph.bfs(origin, destination)
+  }
+
+  deleteTrip(tripId) {
+    const trip = this.trips.find(tripId)
+
+    if (!trip) return false
+
+    this.trips.delete(tripId)
+    delete this.tripHistories[tripId]
+
+    const remainingPendingTrips = []
+    let pendingTrip = this.pendingTrips.dequeue()
+
+    while (pendingTrip) {
+      if (pendingTrip.id !== tripId) {
+        remainingPendingTrips.push(pendingTrip)
+      }
+      pendingTrip = this.pendingTrips.dequeue()
+    }
+
+    for (const item of remainingPendingTrips) {
+      this.pendingTrips.enqueue(item)
+    }
+
+    return true
+  }
+
+  updateTrip(tripId, newData) {
+    const trip = this.trips.find(tripId)
+
+    if (!trip) return null
+
+    trip.studentName = newData.studentName || trip.studentName
+    trip.origin = newData.origin || trip.origin
+    trip.hour = newData.hour || trip.hour
+
+    return trip
   }
 }
 
