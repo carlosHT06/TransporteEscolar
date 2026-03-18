@@ -27,8 +27,14 @@ type DriverScreenProps = {
 }
 
 export default function DriverScreen({ user, manager, onLogout }: DriverScreenProps) {
-  const [currentTrip, setCurrentTrip] = useState<Trip | null>(manager.getNextPendingTrip())
+  const [currentTrip, setCurrentTrip] = useState<Trip | null>(null)
   const [refresh, setRefresh] = useState(false)
+
+  const pendingTrips = manager.pendingTrips.traverse()
+
+  const history = currentTrip
+    ? manager.getTripHistory(currentTrip.id)
+    : []
 
   const handleTakeTrip = () => {
     const trip = manager.takeNextTrip(user.id)
@@ -42,7 +48,24 @@ export default function DriverScreen({ user, manager, onLogout }: DriverScreenPr
     const updatedTrip = manager.updateTripStatus(currentTrip.id, status)
 
     if (updatedTrip) {
-      setCurrentTrip({ ...updatedTrip })
+      if (status === "COMPLETADO") {
+        const nextTrip = manager.getNextPendingTrip()
+        setCurrentTrip(nextTrip || null)
+      } else {
+        setCurrentTrip({ ...updatedTrip })
+      }
+
+      setRefresh(!refresh)
+    }
+  }
+
+  const handleUndo = () => {
+    if (!currentTrip) return
+
+    const updated = manager.undoLastStatus(currentTrip.id)
+
+    if (updated) {
+      setCurrentTrip({ ...updated })
       setRefresh(!refresh)
     }
   }
@@ -55,19 +78,41 @@ export default function DriverScreen({ user, manager, onLogout }: DriverScreenPr
       <Text style={styles.title}>Pantalla Conductor</Text>
       <Text style={styles.subtitle}>Bienvenido, {user.name}</Text>
 
+      <Text style={styles.pending}>Viajes pendientes: {pendingTrips.length}</Text>
+
       {currentTrip ? (
         <View style={styles.card}>
           <Text>Estudiante: {currentTrip.studentName}</Text>
           <Text>Origen: {currentTrip.origin}</Text>
           <Text>Destino: {currentTrip.destination}</Text>
           <Text>Hora: {currentTrip.hour}</Text>
-          <Text>Estado: {currentTrip.status}</Text>
+
+          <Text
+            style={{
+              color: currentTrip.status === "COMPLETADO" ? "green" : "orange",
+              fontWeight: "bold",
+            }}
+          >
+            Estado: {currentTrip.status}
+          </Text>
+
+          <Text>Padre ID: {currentTrip.parentId}</Text>
+
           <Text>Ruta: {route ? route.join(" → ") : "Sin ruta disponible"}</Text>
 
           <View style={styles.space} />
+
           <Button title="Marcar RECOGIDO" onPress={() => handleUpdateStatus("RECOGIDO")} />
           <View style={styles.space} />
           <Button title="Marcar COMPLETADO" onPress={() => handleUpdateStatus("COMPLETADO")} />
+          <View style={styles.space} />
+          <Button title="Deshacer último estado" onPress={handleUndo} />
+
+          <View style={styles.space} />
+          <Text style={styles.section}>Historial:</Text>
+          {history.map((h: string, index: number) => (
+            <Text key={index}>- {h}</Text>
+          ))}
         </View>
       ) : (
         <Text>No hay viaje actual.</Text>
@@ -92,13 +137,21 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   subtitle: {
-    marginBottom: 15,
+    marginBottom: 10,
+  },
+  pending: {
+    marginBottom: 10,
+    fontWeight: "bold",
   },
   card: {
     borderWidth: 1,
     padding: 12,
     borderRadius: 8,
     marginVertical: 12,
+  },
+  section: {
+    marginTop: 10,
+    fontWeight: "bold",
   },
   space: {
     height: 10,
