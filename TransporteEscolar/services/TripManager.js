@@ -7,6 +7,8 @@ import Graph from "../structures/Graph"
 import User from "../models/user"
 import Trip from "../models/Trip"
 
+import { saveUsers, getUsers } from "./storage"
+
 class TripManager {
   constructor() {
     this.users = new HashTable()
@@ -20,6 +22,49 @@ class TripManager {
     this.seedUsers()
   }
 
+  async seedUsers() {
+    const storedUsers = await getUsers()
+
+    if (storedUsers.length > 0) {
+      storedUsers.forEach(user => {
+        this.users.insert(user.email, user)
+      })
+    } else {
+      const parent = new User(1, "Juan Padre", "padre@gmail.com", "1234", "padre")
+      const driver = new User(2, "Carlos Conductor", "driver@gmail.com", "1234", "conductor")
+
+      this.users.insert(parent.email, parent)
+      this.users.insert(driver.email, driver)
+
+      await saveUsers([parent, driver])
+    }
+  }
+
+  async registerUser(name, email, password, role) {
+    const existing = this.users.get(email)
+    if (existing) return null
+
+    const id = Date.now()
+    const user = new User(id, name, email, password, role)
+
+    this.users.insert(email, user)
+
+    const allUsers = await getUsers()
+    allUsers.push(user)
+    await saveUsers(allUsers)
+
+    return user
+  }
+
+  login(email, password) {
+    const user = this.users.get(email)
+
+    if (!user) return null
+    if (user.password !== password) return null
+
+    return user
+  }
+
   setupGraph() {
     this.graph.addVertex("CasaA")
     this.graph.addVertex("CasaB")
@@ -31,23 +76,6 @@ class TripManager {
     this.graph.addEdge("CasaB", "Colegio")
     this.graph.addEdge("CasaC", "Esquina")
     this.graph.addEdge("Esquina", "Colegio")
-  }
-
-  seedUsers() {
-    const parent = new User(1, "Juan Padre", "padre@gmail.com", "1234", "padre")
-    const driver = new User(2, "Carlos Conductor", "driver@gmail.com", "1234", "conductor")
-
-    this.users.insert(parent.email, parent)
-    this.users.insert(driver.email, driver)
-  }
-
-  login(email, password) {
-    const user = this.users.get(email)
-
-    if (!user) return null
-    if (user.password !== password) return null
-
-    return user
   }
 
   requestTrip(studentName, origin, destination, hour, parentId) {
@@ -72,7 +100,7 @@ class TripManager {
 
   getTripsByParent(parentId) {
     const allTrips = this.trips.traverse()
-    return allTrips.filter((trip) => trip.parentId === parentId)
+    return allTrips.filter(trip => trip.parentId === parentId)
   }
 
   getNextPendingTrip() {
@@ -143,19 +171,17 @@ class TripManager {
     this.trips.delete(tripId)
     delete this.tripHistories[tripId]
 
-    const remainingPendingTrips = []
-    let pendingTrip = this.pendingTrips.dequeue()
+    const remaining = []
+    let t = this.pendingTrips.dequeue()
 
-    while (pendingTrip) {
-      if (pendingTrip.id !== tripId) {
-        remainingPendingTrips.push(pendingTrip)
+    while (t) {
+      if (t.id !== tripId) {
+        remaining.push(t)
       }
-      pendingTrip = this.pendingTrips.dequeue()
+      t = this.pendingTrips.dequeue()
     }
 
-    for (const item of remainingPendingTrips) {
-      this.pendingTrips.enqueue(item)
-    }
+    remaining.forEach(item => this.pendingTrips.enqueue(item))
 
     return true
   }

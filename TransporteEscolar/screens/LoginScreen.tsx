@@ -1,17 +1,29 @@
 import React, { useState } from "react"
-import { View, Text, TextInput, Button, StyleSheet } from "react-native"
+import { View, Text, TextInput, Button, StyleSheet, Alert } from "react-native"
 
-type LoginScreenProps = {
+type Props = {
   onLogin: (email: string, password: string) => void
+  onRegister: (name: string, email: string, password: string, role: "padre" | "conductor") => void
 }
 
-export default function LoginScreen({ onLogin }: LoginScreenProps) {
+export default function LoginScreen({ onLogin, onRegister }: Props) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [name, setName] = useState("")
+  const [isRegister, setIsRegister] = useState(false)
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Mini Uber Escolar</Text>
+
+      {isRegister && (
+        <TextInput
+          style={styles.input}
+          placeholder="Nombre"
+          value={name}
+          onChangeText={setName}
+        />
+      )}
 
       <TextInput
         style={styles.input}
@@ -28,10 +40,40 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         onChangeText={setPassword}
       />
 
-      <Button title="Iniciar sesión" onPress={() => onLogin(email, password)} />
+      {isRegister ? (
+        <>
+          <Button
+            title="CREAR CUENTA (PADRE)"
+            onPress={() => {
+              if (!name || !email || !password) {
+                Alert.alert("Error", "Completa todos los campos")
+                return
+              }
 
-      <Text style={styles.info}>Padre: padre@gmail.com / 1234</Text>
-      <Text style={styles.info}>Conductor: driver@gmail.com / 1234</Text>
+              onRegister(name, email, password, "padre")
+              setIsRegister(false)
+            }}
+          />
+
+          <View style={styles.space} />
+
+          <Button title="VOLVER A LOGIN" onPress={() => setIsRegister(false)} />
+        </>
+      ) : (
+        <>
+          <Button
+            title="INICIAR SESIÓN"
+            onPress={() => onLogin(email, password)}
+          />
+
+          <View style={styles.space} />
+
+          <Button
+            title="CREAR CUENTA"
+            onPress={() => setIsRegister(true)}
+          />
+        </>
+      )}
     </View>
   )
 }
@@ -54,8 +96,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
   },
-  info: {
-    marginTop: 10,
-    textAlign: "center",
+  space: {
+    height: 12,
   },
 })

@@ -1,22 +1,19 @@
-import fs from "fs"
+import AsyncStorage from "@react-native-async-storage/async-storage"
 
-const USERS_FILE = "./data/users.json"
-const TRIPS_FILE = "./data/trips.json"
-
-export function loadUsers() {
-  const data = fs.readFileSync(USERS_FILE)
-  return JSON.parse(data)
+export const saveUsers = async (users) => {
+  try {
+    await AsyncStorage.setItem("users", JSON.stringify(users))
+  } catch (e) {
+    console.log("Error guardando usuarios", e)
+  }
 }
 
-export function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2))
-}
-
-export function loadTrips() {
-  const data = fs.readFileSync(TRIPS_FILE)
-  return JSON.parse(data)
-}
-
-export function saveTrips(trips) {
-  fs.writeFileSync(TRIPS_FILE, JSON.stringify(trips, null, 2))
+export const getUsers = async () => {
+  try {
+    const data = await AsyncStorage.getItem("users")
+    return data ? JSON.parse(data) : []
+  } catch (e) {
+    console.log("Error leyendo usuarios", e)
+    return []
+  }
 }
